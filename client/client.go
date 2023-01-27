@@ -22,11 +22,11 @@ type ImplClient struct {
 func NewClient(
 	sdkClient client.Client,
 	updaters ...configurator.Updater[Configuration],
-) (*ImplClient, error) {
+) *ImplClient {
 	return &ImplClient{
 		sdkClient:     sdkClient,
 		configuration: configurator.New[Configuration]().Append(updaters...).Apply(),
-	}, nil
+	}
 }
 
 func (c *ImplClient) ScheduleWorkflow(
