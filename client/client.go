@@ -2,7 +2,7 @@ package client
 
 import (
 	"context"
-	"github.com/semichkin-gopkg/configurator"
+	"github.com/semichkin-gopkg/conf"
 	"github.com/semichkin-gopkg/temporal/alias"
 	"go.temporal.io/sdk/client"
 	wf "go.temporal.io/sdk/workflow"
@@ -21,44 +21,29 @@ type ImplClient struct {
 
 func NewClient(
 	sdkClient client.Client,
-	updaters ...configurator.Updater[Configuration],
+	updaters ...conf.Updater[Configuration],
 ) *ImplClient {
 	return &ImplClient{
 		sdkClient:     sdkClient,
-		configuration: configurator.New[Configuration]().Append(updaters...).Apply(),
+		configuration: conf.NewBuilder[Configuration]().Append(updaters...).Build(),
 	}
 }
 
-func (c *ImplClient) ScheduleWorkflow(
+func (c *ImplClient) RunWorkflow(
 	ctx context.Context,
 	workflow alias.Workflow,
 	params alias.WorkflowParams,
 	updaters ...alias.StartWorkflowUpdater,
 ) (client.WorkflowRun, alias.TemporalServiceError) {
-	configuration := configurator.New[client.StartWorkflowOptions]().
+	configuration := conf.NewBuilder[client.StartWorkflowOptions]().
 		Append(c.configuration.DefaultStartWorkflowUpdaters...).
 		Append(updaters...).
-		Apply()
+		Build()
 
 	return c.sdkClient.ExecuteWorkflow(ctx, configuration, workflow, params)
 }
 
-func (c *ImplClient) ExecuteWorkflow(
-	ctx context.Context,
-	workflow alias.Workflow,
-	params alias.WorkflowParams,
-	resultPtr alias.ExecutionResultPtr,
-	updaters ...alias.StartWorkflowUpdater,
-) alias.TemporalExecutionError {
-	run, err := c.ScheduleWorkflow(ctx, workflow, params, updaters...)
-	if err != nil {
-		return err
-	}
-
-	return run.Get(ctx, resultPtr)
-}
-
-func (c *ImplClient) ScheduleWorkflowWithSignal(
+func (c *ImplClient) RunWorkflowWithSignal(
 	ctx context.Context,
 	workflowID alias.WorkflowID,
 	signalName alias.WorkflowSignalName,
@@ -67,10 +52,10 @@ func (c *ImplClient) ScheduleWorkflowWithSignal(
 	params alias.WorkflowParams,
 	updaters ...alias.StartWorkflowUpdater,
 ) (client.WorkflowRun, alias.TemporalServiceError) {
-	configuration := configurator.New[client.StartWorkflowOptions]().
+	configuration := conf.NewBuilder[client.StartWorkflowOptions]().
 		Append(c.configuration.DefaultStartWorkflowUpdaters...).
 		Append(updaters...).
-		Apply()
+		Build()
 
 	return c.sdkClient.SignalWithStartWorkflow(
 		ctx,
@@ -83,52 +68,67 @@ func (c *ImplClient) ScheduleWorkflowWithSignal(
 	)
 }
 
-func (c *ImplClient) ScheduleChildWorkflow(
+func (c *ImplClient) ExecuteWorkflow(
+	ctx context.Context,
+	workflow alias.Workflow,
+	params alias.WorkflowParams,
+	resultPtr alias.ExecutionResultPtr,
+	updaters ...alias.StartWorkflowUpdater,
+) alias.TemporalExecutionError {
+	run, err := c.RunWorkflow(ctx, workflow, params, updaters...)
+	if err != nil {
+		return err
+	}
+
+	return run.Get(ctx, resultPtr)
+}
+
+func (c *ImplClient) RunWorkflowAsChild(
 	ctx wf.Context,
 	workflow alias.Workflow,
 	params alias.WorkflowParams,
 	updaters ...alias.ChildWorkflowUpdater,
 ) wf.ChildWorkflowFuture {
-	configuration := configurator.New[wf.ChildWorkflowOptions]().
+	configuration := conf.NewBuilder[wf.ChildWorkflowOptions]().
 		Append(c.configuration.DefaultChildWorkflowUpdaters...).
 		Append(updaters...).
-		Apply()
+		Build()
 
 	ctx = wf.WithChildOptions(ctx, configuration)
 	return wf.ExecuteChildWorkflow(ctx, workflow, params)
 }
 
-func (c *ImplClient) ScheduleChildWorkflowWithWaitExecutionStart(
+func (c *ImplClient) RunWorkflowAsChildWithWaitExecutionStart(
 	ctx wf.Context,
 	workflow alias.Workflow,
 	params alias.WorkflowParams,
 	updaters ...alias.ChildWorkflowUpdater,
 ) (wf.Execution, error) {
-	future := c.ScheduleChildWorkflow(ctx, workflow, params, updaters...)
+	future := c.RunWorkflowAsChild(ctx, workflow, params, updaters...)
 	var execution wf.Execution
 	return execution, future.GetChildWorkflowExecution().Get(ctx, &execution)
 }
 
-func (c *ImplClient) ExecuteChildWorkflow(
+func (c *ImplClient) ExecuteWorkflowAsChild(
 	ctx wf.Context,
 	workflow alias.Workflow,
 	params alias.WorkflowParams,
 	resultPtr alias.ExecutionResultPtr,
 	updaters ...alias.ChildWorkflowUpdater,
 ) alias.TemporalExecutionError {
-	return c.ScheduleChildWorkflow(ctx, workflow, params, updaters...).Get(ctx, resultPtr)
+	return c.RunWorkflowAsChild(ctx, workflow, params, updaters...).Get(ctx, resultPtr)
 }
 
-func (c *ImplClient) ScheduleActivity(
+func (c *ImplClient) RunActivity(
 	ctx wf.Context,
 	activity alias.Activity,
 	params alias.ActivityParams,
 	updaters ...alias.ActivityUpdater,
 ) wf.Future {
-	configuration := configurator.New[wf.ActivityOptions]().
+	configuration := conf.NewBuilder[wf.ActivityOptions]().
 		Append(c.configuration.DefaultActivityUpdater...).
 		Append(updaters...).
-		Apply()
+		Build()
 
 	ctx = wf.WithActivityOptions(ctx, configuration)
 	return wf.ExecuteActivity(ctx, activity, params)
@@ -141,7 +141,7 @@ func (c *ImplClient) ExecuteActivity(
 	resultPtr alias.ExecutionResultPtr,
 	updaters ...alias.ActivityUpdater,
 ) alias.TemporalExecutionError {
-	return c.ScheduleActivity(ctx, activity, params, updaters...).Get(ctx, resultPtr)
+	return c.RunActivity(ctx, activity, params, updaters...).Get(ctx, resultPtr)
 }
 
 func (c *ImplClient) SignalWorkflow(

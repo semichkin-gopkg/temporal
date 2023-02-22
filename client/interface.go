@@ -8,8 +8,18 @@ import (
 )
 
 type Client interface {
-	ScheduleWorkflow(
+	RunWorkflow(
 		context.Context,
+		alias.Workflow,
+		alias.WorkflowParams,
+		...alias.StartWorkflowUpdater,
+	) (client.WorkflowRun, alias.TemporalServiceError)
+
+	RunWorkflowWithSignal(
+		context.Context,
+		alias.WorkflowID,
+		alias.WorkflowSignalName,
+		alias.WorkflowSignalPayload,
 		alias.Workflow,
 		alias.WorkflowParams,
 		...alias.StartWorkflowUpdater,
@@ -23,31 +33,21 @@ type Client interface {
 		...alias.StartWorkflowUpdater,
 	) alias.TemporalExecutionError
 
-	ScheduleWorkflowWithSignal(
-		context.Context,
-		alias.WorkflowID,
-		alias.WorkflowSignalName,
-		alias.WorkflowSignalPayload,
-		alias.Workflow,
-		alias.WorkflowParams,
-		...alias.StartWorkflowUpdater,
-	) (client.WorkflowRun, alias.TemporalServiceError)
-
-	ScheduleChildWorkflow(
+	RunWorkflowAsChild(
 		workflow.Context,
 		alias.Workflow,
 		alias.WorkflowParams,
 		...alias.ChildWorkflowUpdater,
 	) workflow.ChildWorkflowFuture
 
-	ScheduleChildWorkflowWithWaitExecutionStart(
+	RunWorkflowAsChildWithWaitExecutionStart(
 		workflow.Context,
 		alias.Workflow,
 		alias.WorkflowParams,
 		...alias.ChildWorkflowUpdater,
 	) (workflow.Execution, error)
 
-	ExecuteChildWorkflow(
+	ExecuteWorkflowAsChild(
 		workflow.Context,
 		alias.Workflow,
 		alias.WorkflowParams,
@@ -55,7 +55,7 @@ type Client interface {
 		...alias.ChildWorkflowUpdater,
 	) alias.TemporalExecutionError
 
-	ScheduleActivity(
+	RunActivity(
 		workflow.Context,
 		alias.Activity,
 		alias.ActivityParams,

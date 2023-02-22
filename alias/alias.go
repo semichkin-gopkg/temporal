@@ -1,15 +1,15 @@
 package alias
 
 import (
-	"github.com/semichkin-gopkg/configurator"
+	"github.com/semichkin-gopkg/conf"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 )
 
 type (
-	StartWorkflowUpdater = configurator.Updater[client.StartWorkflowOptions]
-	ChildWorkflowUpdater = configurator.Updater[workflow.ChildWorkflowOptions]
-	ActivityUpdater      = configurator.Updater[workflow.ActivityOptions]
+	StartWorkflowUpdater = conf.Updater[client.StartWorkflowOptions]
+	ChildWorkflowUpdater = conf.Updater[workflow.ChildWorkflowOptions]
+	ActivityUpdater      = conf.Updater[workflow.ActivityOptions]
 
 	Execution          = any
 	ExecutionResultPtr = any
